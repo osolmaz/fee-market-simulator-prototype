@@ -1,4 +1,3 @@
-
 def integrate_cumulative(x, y):
     slice_areas = []
     for i in range(len(x) - 1):

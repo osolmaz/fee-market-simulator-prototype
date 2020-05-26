@@ -9,43 +9,50 @@ import matplotlib.pyplot as plt
 logging.basicConfig(level=logging.INFO)
 
 from demand import sample_price
+from transaction import Transaction, TransactionPool
 
 BLOCK_GAS_LIMIT = 10_000_000
 TX_GAS_USED = 21_000
 
-BLOCK_TIME = 13
+# BLOCK_TIME = 13
+BLOCK_TIME = 600
 SECONDS_IN_DAY = 60 * 60 * 24
 BLOCKS_IN_DAY = floor(SECONDS_IN_DAY / BLOCK_TIME)
 
-N_BLOCKS = 3 * BLOCKS_IN_DAY
+N_BLOCKS = 2 * BLOCKS_IN_DAY
 
 
 def n_user_fun(i):
-    base = 1500
-    osc_amplitude = 500
+    base = 5000
+    osc_amplitude = 2000
     coeff = 2 * pi / BLOCKS_IN_DAY
     return int(base + osc_amplitude * sin(coeff * i))
 
+
+txpool = TransactionPool()
 
 X = list(range(N_BLOCKS))
 P = []
 n_user_arr = []
 bar = progressbar.ProgressBar(max_value=N_BLOCKS)
+txpool_size_arr = []
 
 for x in X:
     n_user = int(n_user_fun(x))
 
-    prices = [sample_price() for i in range(n_user)]
+    # prices = [sample_price() for i in range(n_user)]
+    prices = sample_price(size=n_user)
+    txs = [Transaction(TX_GAS_USED, p) for p in prices]
+    txpool.add_txs(txs)
 
-    n_txs = floor(BLOCK_GAS_LIMIT / TX_GAS_USED)
+    included_txs = txpool.pop_most_valuable_txs(total_gas_target=BLOCK_GAS_LIMIT)
 
-    prices = sorted(prices, reverse=True)
-
-    prices_of_included_txs = prices[:n_txs]
+    prices_of_included_txs = [i.gas_price for i in included_txs]
     median_price = np.median(prices_of_included_txs)
 
     P.append(median_price)
     n_user_arr.append(n_user)
+    txpool_size_arr.append(txpool.get_size())
 
     bar.update(x)
 
@@ -54,11 +61,20 @@ bar.finish()
 plt.figure()
 plt.plot(X, P)
 plt.ylim(bottom=0)
+plt.title("Median gas price")
 plt.grid()
 
 plt.figure()
 plt.plot(X, n_user_arr)
 plt.ylim(bottom=0)
+plt.title("Number of txs sent")
 plt.grid()
+
+plt.figure()
+plt.plot(X, txpool_size_arr)
+plt.ylim(bottom=0)
+plt.title("Size of the tx pool")
+plt.grid()
+
 
 plt.show()

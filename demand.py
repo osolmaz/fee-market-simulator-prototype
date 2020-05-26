@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
 
 import numpy as np
-import random
+
+# import random
 
 from scipy import interpolate, integrate
 from math import floor
@@ -19,14 +20,14 @@ POINTS = [
     (20, 10000),
     (5, 15000),
     (0.1, 20000),
-    (0, 1000000),
+    (0, 100000),
 ]
 
 YLIM = 22000
 N_BINS = 100
 
 INTERPOLATION_RESOLUTION = 50000
-DEMO_SAMPLE_SIZE = 200000 # Only for the demo in this file
+DEMO_SAMPLE_SIZE = 200000  # Only for the demo in this file
 
 # POINTS = [
 #     (100, 0),
@@ -61,12 +62,23 @@ Finv = interpolate.interp1d(Q_val, P_int)
 
 Finv_arr = [Finv(i).tolist() for i in np.linspace(0, 1, INTERPOLATION_RESOLUTION)]
 
-def sample_price():
-    n = random.random()
-    idx = floor(n * INTERPOLATION_RESOLUTION)
-    p = Finv_arr[idx]
-    # p = Finv(n).tolist()
-    return p
+
+def sample_price(size=1):
+    if size == 1:
+        n = np.random.random()
+        idx = floor(n * INTERPOLATION_RESOLUTION)
+        p = Finv_arr[idx]
+        # p = Finv(n).tolist()
+        return p
+    elif size > 1:
+        result = []
+        for n in np.random.random(size=size):
+            idx = floor(n * INTERPOLATION_RESOLUTION)
+            result.append(Finv_arr[idx])
+        return result
+    else:
+        raise Exception("Invalid size")
+
 
 logging.info("Loaded demand curve")
 
