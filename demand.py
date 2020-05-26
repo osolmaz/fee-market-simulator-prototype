@@ -6,11 +6,13 @@ import random
 from scipy import interpolate, integrate
 from math import floor
 
+from helper import integrate_cumulative
+
 import logging
 
 # P, Q
 POINTS = [
-    (100, 1),
+    (100, 0),
     (80, 1000),
     (60, 3000),
     (40, 6000),
@@ -24,6 +26,7 @@ YLIM = 22000
 N_BINS = 100
 
 INTERPOLATION_RESOLUTION = 50000
+DEMO_SAMPLE_SIZE = 200000 # Only for the demo in this file
 
 # POINTS = [
 #     (100, 0),
@@ -34,37 +37,29 @@ INTERPOLATION_RESOLUTION = 50000
 #     (0, 5000),
 # ]
 
-
 POINTS = sorted(POINTS, key=lambda x: x[0])
 
 P = [i[0] for i in POINTS]
 Q = [i[1] for i in POINTS]
+
+assert min(Q) == 0
 
 Q_int = []
 P_int = np.linspace(min(P), max(P), INTERPOLATION_RESOLUTION)
 Q_fun = interpolate.interp1d(P, Q)
 Q_val = np.array([Q_fun(i) for i in P_int])
 
-slice_areas = []
-for i in range(len(P_int) - 1):
-    area = (P_int[i + 1] - P_int[i]) * (Q_val[i] + Q_val[i + 1]) / 2
-    slice_areas.append(area)
+# deriv = np.diff(list(reversed(Q_val)))/np.diff(P_int)
+# deriv = np.insert(deriv, 0, 0)
+# deriv = deriv/np.trapz(deriv, P_int)
+# plt.plot(P_int, integrate_cumulative(P_int, deriv))
+# plt.show()
 
-Q_int = [0.0]
-for i in slice_areas:
-    Q_int.append(Q_int[-1] + i)
+Q_val = np.array(Q_val) / max(Q_val)
 
-Q_int = np.array(Q_int) / Q_int[-1]
-
-Finv = interpolate.interp1d(Q_int, P_int)
+Finv = interpolate.interp1d(Q_val, P_int)
 
 Finv_arr = [Finv(i).tolist() for i in np.linspace(0, 1, INTERPOLATION_RESOLUTION)]
-
-# def sample_price():
-#     n = random.random()
-#     p = Finv(n).tolist()
-#     return p
-
 
 def sample_price():
     n = random.random()
@@ -73,28 +68,12 @@ def sample_price():
     # p = Finv(n).tolist()
     return p
 
-
 logging.info("Loaded demand curve")
 
 if __name__ == "__main__":
-    fig, ax1 = plt.subplots()
-
-    ax1.plot(P_int, Q_int, color="red")
-
     p_arr = []
-    for i in range(100000):
+    for i in range(DEMO_SAMPLE_SIZE):
         p_arr.append(sample_price())
-
-    p_arr = np.array(p_arr)
-    ax2 = ax1.twinx()
-
-    ax1.set_ylim(0, max(Q_int) * 1.1)
-    ax2.set_ylim(0, len(p_arr) * 1.1)
-    plt.grid()
-
-    ax2.hist(p_arr, bins=100, cumulative=True, histtype="step")
-
-    #########################
 
     fig, ax1 = plt.subplots()
 
@@ -109,7 +88,7 @@ if __name__ == "__main__":
     ax2 = ax1.twinx()
     ax2.set_ylabel("Quantity (Sampled)")
 
-    ax2.hist(p_arr, bins=N_BINS, histtype="step", label="Sampled prices")
+    ax2.hist(p_arr, bins=N_BINS, histtype="step", label="Sampled prices", cumulative=-1)
 
     PIVOT_POINT = (min(P) + max(P)) / 2
     PIVOT_RANGE = (max(P) - min(P)) / N_BINS
@@ -119,9 +98,9 @@ if __name__ == "__main__":
         for i in p_arr
     )
 
-    ax2_lim = YLIM * n_elem / Q_fun(PIVOT_POINT)
-
+    ax2_lim = YLIM * len(p_arr) / max(Q)
     ax2.set_ylim(0, ax2_lim)
+
     fig.legend(loc="upper right", bbox_to_anchor=(1, 1), bbox_transform=ax1.transAxes)
 
     plt.show()
