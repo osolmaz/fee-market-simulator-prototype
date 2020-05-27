@@ -10,6 +10,7 @@ logging.basicConfig(level=logging.INFO)
 
 from demand import sample_price
 from transaction import Transaction, TransactionPool
+from block import Block
 
 BLOCK_GAS_LIMIT = 10_000_000
 TX_GAS_USED = 21_000
@@ -37,17 +38,20 @@ X = list(range(N_BLOCKS))
 
 n_user_arr = []
 txpool_size_arr = []
-median_price_arr = []
+txs_sent_arr = []
+blocks = []
 
 bar = progressbar.ProgressBar(max_value=N_BLOCKS)
 
 for x in X:
     n_user = int(n_user_fun(x))
 
-    if len(median_price_arr) == 0:
+    if len(blocks) == 0:
         prev_median_price = 0.1
+        prev_min_price = 0.0
     else:
-        prev_median_price = median_price_arr[-1]
+        prev_median_price = blocks[-1].get_median_price()
+        prev_min_price = blocks[-1].get_min_price()
 
     # prices = [sample_price() for i in range(n_user)]
     wtp_arr = sample_price(size=n_user)  # Willingness to pay
@@ -55,7 +59,9 @@ for x in X:
     for wtp in wtp_arr:
         bid_price = prev_median_price + prev_median_price * OVERBIDDING_RATE
 
-        if bid_price > wtp:
+        if wtp < prev_min_price:
+            pass
+        elif prev_min_price <= wtp < bid_price:
             prices.append(wtp)
         else:
             prices.append(bid_price)
@@ -64,35 +70,45 @@ for x in X:
     txpool.add_txs(txs)
 
     included_txs = txpool.pop_most_valuable_txs(total_gas_target=BLOCK_GAS_LIMIT)
+    new_block = Block(included_txs)
+    blocks.append(new_block)
 
-    prices_of_included_txs = [i.gas_price for i in included_txs]
-    median_price = np.median(prices_of_included_txs)
-
-    median_price_arr.append(median_price)
     n_user_arr.append(n_user)
+    txs_sent_arr.append(len(txs))
     txpool_size_arr.append(txpool.get_size())
 
     bar.update(x)
 
 bar.finish()
 
+X_adjusted = np.array(X) / BLOCKS_IN_DAY
+
 plt.figure()
-plt.plot(X, median_price_arr)
+plt.plot(X_adjusted, [b.get_median_price() for b in blocks])
 plt.ylim(bottom=0)
 plt.title("Median gas price")
+plt.xlabel("Day")
 plt.grid()
 
 plt.figure()
-plt.plot(X, n_user_arr)
+plt.plot(X_adjusted, n_user_arr)
 plt.ylim(bottom=0)
-plt.title("Number of txs sent")
+plt.title("Number of users per block")
+plt.xlabel("Day")
 plt.grid()
+
+plt.figure()
+plt.plot(X_adjusted, txs_sent_arr)
+plt.ylim(bottom=0)
+plt.title("Number of new txs sent per between 2 blocks")
+plt.xlabel("Day")
+plt.grid()
+
 
 # plt.figure()
 # plt.plot(X, txpool_size_arr)
 # plt.ylim(bottom=0)
 # plt.title("Size of the tx pool")
 # plt.grid()
-
 
 plt.show()
