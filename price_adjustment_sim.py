@@ -40,7 +40,7 @@ SAVEFIG_KWARGS = {
 }
 
 FIGURE_KWARGS = {
-    "figsize": (18, 9),
+    "figsize": (15, 9),
 }
 
 
@@ -52,6 +52,19 @@ def n_user_fun(i):
 
 
 # End of config
+
+
+def plot_time_series(X, Y, title, opath):
+    fig = plt.figure(**FIGURE_KWARGS)
+    plt.plot(X, Y)
+    plt.ylim(bottom=0)
+    plt.title(title)
+    plt.xlabel("Day")
+    plt.grid()
+    plt.tight_layout()
+    plt.savefig(opath, **SAVEFIG_KWARGS)
+    plt.close(fig)
+
 
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
@@ -96,28 +109,28 @@ for x in X:
         ]
         summary = "\n".join("%s: %g" % (i[0], i[1]) for i in stats_)
 
-        fig, (ax1, ax2) = plt.subplots(1, 2, **FIGURE_KWARGS)
-        ax1.hist(individual_fullnesses, bins=100, edgecolor="black")
-        t = ax1.text(
+        fig = plt.figure(**FIGURE_KWARGS)
+        plt.hist(individual_fullnesses, bins=100, edgecolor="black")
+        t = plt.text(
             0.2,
             0.8,
             summary,
-            horizontalalignment="center",
+            horizontalalignment="left",
             verticalalignment="center",
-            transform=ax1.transAxes,
+            transform=plt.gca().transAxes,
         )
         t.set_bbox(dict(facecolor="lightgray", alpha=0.5))
+        plt.grid()
 
-        ax1.grid()
 
-        ax2.hist(
-            individual_fullnesses,
-            bins=100,
-            histtype="step",
-            cumulative=True,
-            density=True,
-        )
-        ax2.grid()
+        # ax2.hist(
+        #     individual_fullnesses,
+        #     bins=100,
+        #     histtype="step",
+        #     cumulative=True,
+        #     density=True,
+        # )
+        # ax2.grid()
 
         plt.tight_layout()
         plt.savefig("out/out-%08d.svg" % x, **SAVEFIG_KWARGS)
@@ -157,60 +170,39 @@ bar.finish()
 
 X_adjusted = np.array(X) / BLOCKS_IN_DAY
 
-plt.figure(**FIGURE_KWARGS)
-plt.plot(X_adjusted, fixed_price_arr)
-plt.ylim(bottom=0)
-plt.title("Fixed price")
-plt.xlabel("Day")
-plt.grid()
-plt.savefig("out/out-price.svg", **SAVEFIG_KWARGS)
+plot_time_series(X_adjusted, fixed_price_arr, "Fixed price", "out/out-price.svg")
 
-plt.figure(**FIGURE_KWARGS)
-plt.plot(X_adjusted, n_user_arr)
-plt.ylim(bottom=0)
-plt.title("Number of users per block")
-plt.xlabel("Day")
-plt.grid()
-plt.savefig("out/out-n-user.svg", **SAVEFIG_KWARGS)
+plot_time_series(
+    X_adjusted, n_user_arr, "Number of users per block", "out/out-n-user.svg"
+)
 
-plt.figure(**FIGURE_KWARGS)
-plt.plot(X_adjusted, txs_sent_arr)
-plt.ylim(bottom=0)
-plt.title("Number of new txs sent per between 2 blocks")
-plt.xlabel("Day")
-plt.grid()
-plt.savefig("out/out-txs-sent.svg", **SAVEFIG_KWARGS)
+plot_time_series(
+    X_adjusted,
+    txs_sent_arr,
+    "Number of new txs sent per between 2 blocks",
+    "out/out-txs-sent.svg",
+)
 
-plt.figure(**FIGURE_KWARGS)
-plt.plot(X_adjusted, control_fullness_arr)
-plt.ylim(bottom=0)
-plt.title("Control fullness")
-plt.xlabel("Day")
-plt.grid()
-plt.savefig("out/out-control-fullness.svg", **SAVEFIG_KWARGS)
+plot_time_series(
+    X_adjusted, control_fullness_arr, "Control fullness", "out/out-control-fullness.svg"
+)
 
-plt.figure(**FIGURE_KWARGS)
-plt.plot(X_adjusted, [b.get_gas_used() / BLOCK_GAS_LIMIT for b in blocks])
-plt.ylim(bottom=0)
-plt.title("Individual fullness")
-plt.xlabel("Day")
-plt.grid()
-plt.savefig("out/out-fullness.svg", **SAVEFIG_KWARGS)
+plot_time_series(
+    X_adjusted,
+    [b.get_gas_used() / BLOCK_GAS_LIMIT for b in blocks],
+    "Individual fullness",
+    "out/out-fullness.svg",
+)
 
-plt.figure(**FIGURE_KWARGS)
-plt.plot(X, txpool_size_arr)
-plt.ylim(bottom=0)
-plt.title("Size of the tx pool")
-plt.xlabel("Day")
-plt.grid()
-plt.savefig("out/out-txpool-size.svg", **SAVEFIG_KWARGS)
+plot_time_series(
+    X_adjusted, txpool_size_arr, "Size of the tx pool", "out/out-txpool-size.svg"
+)
 
-plt.figure(**FIGURE_KWARGS)
-plt.plot(X, n_unincluded_tx_arr)
-plt.ylim(bottom=0)
-plt.title("Number of unincluded txs")
-plt.xlabel("Day")
-plt.grid()
-plt.savefig("out/out-n-unincluded-tx.svg", **SAVEFIG_KWARGS)
+plot_time_series(
+    X_adjusted,
+    n_unincluded_tx_arr,
+    "Number of unincluded txs",
+    "out/out-n-unincluded-tx.svg",
+)
 
 # plt.show()
