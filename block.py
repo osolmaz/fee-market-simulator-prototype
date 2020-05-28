@@ -13,7 +13,7 @@ class Block:
         return sum(i.gas_used for i in self.txs)
 
     def get_fullness(self):
-        return self.get_gas_used()/self.gas_limit
+        return self.get_gas_used() / self.gas_limit
 
     def get_median_price(self):
         prices = [i.gas_price for i in self.txs]
