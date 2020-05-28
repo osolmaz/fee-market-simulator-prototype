@@ -1,21 +1,14 @@
 import logging
 import os
 
-import numpy as np
-import progressbar
-
-from math import ceil, floor, sin, pi
-from scipy import stats
-import matplotlib.pyplot as plt
-import matplotlib
+from math import floor, pi, sin
 
 logging.basicConfig(level=logging.INFO)
 
-from demand import sample_price
-from transaction import Transaction, TransactionPool
-from block import Block
-
-matplotlib.rcParams["lines.linewidth"] = 0.5
+from simulator import PriceAdjustmentSimulator
+from demand import DemandCurve
+from constants import *
+import config
 
 OUTPUT_DIR = "out"
 BLOCK_GAS_LIMIT = 10_000_000
@@ -25,7 +18,6 @@ OVERBIDDING_RATE = 0.1
 
 # BLOCK_TIME = 13
 BLOCK_TIME = 600
-SECONDS_IN_DAY = 60 * 60 * 24
 BLOCKS_IN_DAY = floor(SECONDS_IN_DAY / BLOCK_TIME)
 
 CONTROL_RANGE = BLOCKS_IN_DAY
@@ -35,13 +27,9 @@ PRICE_ADJUSTMENT_RATE = 0.01
 # N_BLOCKS = 3 * BLOCKS_IN_DAY
 N_BLOCKS = 40 * BLOCKS_IN_DAY
 
-SAVEFIG_KWARGS = {
-    # "dpi": 200,
-}
+INITIAL_PRICE = 35
 
-FIGURE_KWARGS = {
-    "figsize": (15, 9),
-}
+demand_curve = DemandCurve(config.P, config.Q)
 
 
 def n_user_fun(i):
@@ -53,156 +41,22 @@ def n_user_fun(i):
 
 # End of config
 
-
-def plot_time_series(X, Y, title, opath):
-    fig = plt.figure(**FIGURE_KWARGS)
-    plt.plot(X, Y)
-    plt.ylim(bottom=0)
-    plt.title(title)
-    plt.xlabel("Day")
-    plt.grid()
-    plt.tight_layout()
-    plt.savefig(opath, **SAVEFIG_KWARGS)
-    plt.close(fig)
-
-
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 
-txpool = TransactionPool()
-
-X = list(range(N_BLOCKS))
-
-n_user_arr = []
-txpool_size_arr = []
-txs_sent_arr = []
-blocks = []
-control_fullness_arr = []
-fixed_price_arr = []
-n_unincluded_tx_arr = []
-
-bar = progressbar.ProgressBar(max_value=N_BLOCKS)
-
-fixed_price = 35
-control_fullness = 1
-
-for x in X:
-    n_user = int(n_user_fun(x))
-
-    if x > 0 and x % CONTROL_RANGE == 0:
-        control_blocks = blocks[-CONTROL_RANGE:]
-
-        control_gas_used = sum(b.get_gas_used() for b in control_blocks)
-        max_gas_used = len(control_blocks) * BLOCK_GAS_LIMIT
-        control_fullness = control_gas_used / max_gas_used
-
-        individual_fullnesses = np.array([b.get_fullness() for b in control_blocks])
-
-        stats_ = [
-            ("Time", x / BLOCKS_IN_DAY),
-            ("Fixed price", fixed_price),
-            ("Mean", np.mean(individual_fullnesses)),
-            ("Median", np.median(individual_fullnesses)),
-            ("Std", np.std(individual_fullnesses)),
-            ("Skewness", stats.skew(individual_fullnesses)),
-            ("Kurtosis", stats.kurtosis(individual_fullnesses)),
-        ]
-        summary = "\n".join("%s: %g" % (i[0], i[1]) for i in stats_)
-
-        fig = plt.figure(**FIGURE_KWARGS)
-        plt.hist(individual_fullnesses, bins=100, edgecolor="black")
-        t = plt.text(
-            0.2,
-            0.8,
-            summary,
-            horizontalalignment="left",
-            verticalalignment="center",
-            transform=plt.gca().transAxes,
-        )
-        t.set_bbox(dict(facecolor="lightgray", alpha=0.5))
-        plt.grid()
-
-
-        # ax2.hist(
-        #     individual_fullnesses,
-        #     bins=100,
-        #     histtype="step",
-        #     cumulative=True,
-        #     density=True,
-        # )
-        # ax2.grid()
-
-        plt.tight_layout()
-        plt.savefig("out/out-%08d.svg" % x, **SAVEFIG_KWARGS)
-        plt.close()
-
-        # increase = control_fullness > TARGET_FULLNESS
-        increase = np.median(individual_fullnesses) > TARGET_FULLNESS
-
-        if increase:
-            fixed_price = fixed_price * (1 + PRICE_ADJUSTMENT_RATE)
-        else:
-            fixed_price = fixed_price * (1 - PRICE_ADJUSTMENT_RATE)
-
-    # Samples correspond to willingness-to-pay values of random users
-    wtp_arr = sample_price(size=n_user)
-
-    # Calculate the number of users that can afford the current price
-    n_users_afford = sum(wtp >= fixed_price for wtp in wtp_arr)
-
-    txs = [Transaction(TX_GAS_USED, fixed_price) for i in range(n_users_afford)]
-    txpool.add_txs(txs)
-
-    included_txs = txpool.pop_most_valuable_txs(total_gas_target=BLOCK_GAS_LIMIT)
-    new_block = Block(included_txs, BLOCK_GAS_LIMIT)
-    blocks.append(new_block)
-
-    n_user_arr.append(n_user)
-    txs_sent_arr.append(len(txs))
-    txpool_size_arr.append(txpool.get_size())
-    control_fullness_arr.append(control_fullness)
-    fixed_price_arr.append(fixed_price)
-    n_unincluded_tx_arr.append(max(0, len(txs) - len(included_txs)))
-
-    bar.update(x)
-
-bar.finish()
-
-X_adjusted = np.array(X) / BLOCKS_IN_DAY
-
-plot_time_series(X_adjusted, fixed_price_arr, "Fixed price", "out/out-price.svg")
-
-plot_time_series(
-    X_adjusted, n_user_arr, "Number of users per block", "out/out-n-user.svg"
+sim = PriceAdjustmentSimulator(
+    demand_curve,
+    n_user_fun,
+    INITIAL_PRICE,
+    block_gas_limit=BLOCK_GAS_LIMIT,
+    tx_gas_used=TX_GAS_USED,
+    overbidding_rate=OVERBIDDING_RATE,
+    block_time=BLOCK_TIME,
+    control_range=CONTROL_RANGE,
+    target_fullness=TARGET_FULLNESS,
+    price_adjustment_rate=PRICE_ADJUSTMENT_RATE,
 )
 
-plot_time_series(
-    X_adjusted,
-    txs_sent_arr,
-    "Number of new txs sent per between 2 blocks",
-    "out/out-txs-sent.svg",
-)
+sim.run(N_BLOCKS, fullness_histogram_dir=OUTPUT_DIR)
 
-plot_time_series(
-    X_adjusted, control_fullness_arr, "Control fullness", "out/out-control-fullness.svg"
-)
-
-plot_time_series(
-    X_adjusted,
-    [b.get_gas_used() / BLOCK_GAS_LIMIT for b in blocks],
-    "Individual fullness",
-    "out/out-fullness.svg",
-)
-
-plot_time_series(
-    X_adjusted, txpool_size_arr, "Size of the tx pool", "out/out-txpool-size.svg"
-)
-
-plot_time_series(
-    X_adjusted,
-    n_unincluded_tx_arr,
-    "Number of unincluded txs",
-    "out/out-n-unincluded-tx.svg",
-)
-
-# plt.show()
+sim.plot_result(OUTPUT_DIR)

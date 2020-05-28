@@ -8,9 +8,10 @@ import matplotlib.pyplot as plt
 
 logging.basicConfig(level=logging.INFO)
 
-from demand import sample_price
+from demand import DemandCurve
 from transaction import Transaction, TransactionPool
 from block import Block
+import config
 
 BLOCK_GAS_LIMIT = 10_000_000
 TX_GAS_USED = 21_000
@@ -32,6 +33,10 @@ def n_user_fun(i):
     return int(base + osc_amplitude * sin(coeff * i))
 
 
+# End of config
+
+demand_curve = DemandCurve(config.P, config.Q)
+
 txpool = TransactionPool()
 
 X = list(range(N_BLOCKS))
@@ -40,6 +45,7 @@ n_user_arr = []
 txpool_size_arr = []
 txs_sent_arr = []
 blocks = []
+
 
 bar = progressbar.ProgressBar(max_value=N_BLOCKS)
 
@@ -54,7 +60,7 @@ for x in X:
         prev_min_price = blocks[-1].get_min_price()
 
     # prices = [sample_price() for i in range(n_user)]
-    wtp_arr = sample_price(size=n_user)  # Willingness to pay
+    wtp_arr = demand_curve.sample_price(size=n_user)  # Willingness to pay
     prices = []
     for wtp in wtp_arr:
         bid_price = prev_median_price + prev_median_price * OVERBIDDING_RATE

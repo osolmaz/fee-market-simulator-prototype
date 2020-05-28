@@ -1,91 +1,83 @@
+import logging
+import numpy as np
 import matplotlib.pyplot as plt
 
-import numpy as np
-
-# import random
-
-from scipy import interpolate, integrate
+from scipy import interpolate
 from math import floor
 
-from helper import integrate_cumulative
 
-import logging
+class DemandCurve:
+    def __init__(self, p, q, interp_resolution=50000):
+        if p != sorted(p):
+            raise Exception("The price array must be sorted in increasing order")
 
-# P, Q
-POINTS = [
-    (100, 0),
-    (80, 1000),
-    (60, 3000),
-    (40, 6000),
-    (20, 10000),
-    (5, 15000),
-    (0.1, 20000),
-    (0, 100000),
-]
+        if q[-1] != 0:
+            raise Exception("The quantity array must end with a zero")
 
-YLIM = 22000
-N_BINS = 100
+        self.p = p
+        self.q = q
+        self.interp_resolution = interp_resolution
 
-INTERPOLATION_RESOLUTION = 50000
-DEMO_SAMPLE_SIZE = 200000  # Only for the demo in this file
+        Q_int = []
+        P_int = np.linspace(min(p), max(p), interp_resolution)
+        Q_fun = interpolate.interp1d(p, q)
+        Q_val = np.array([Q_fun(i) for i in P_int])
+        Q_val = np.array(Q_val) / max(Q_val)
 
-# POINTS = [
-#     (100, 0),
-#     (80, 1000),
-#     (60, 2000),
-#     (40, 3000),
-#     (20, 4000),
-#     (0, 5000),
-# ]
+        Finv = interpolate.interp1d(Q_val, P_int)
 
-POINTS = sorted(POINTS, key=lambda x: x[0])
+        self.Finv_arr = [
+            Finv(i).tolist() for i in np.linspace(0, 1, self.interp_resolution)
+        ]
 
-P = [i[0] for i in POINTS]
-Q = [i[1] for i in POINTS]
+        logging.info("Loaded demand curve")
 
-assert min(Q) == 0
+    def sample_price(self, size=1):
+        if size == 1:
+            n = np.random.random()
+            idx = floor(n * self.interp_resolution)
+            p = self.Finv_arr[idx]
+            # p = Finv(n).tolist()
+            return p
 
-Q_int = []
-P_int = np.linspace(min(P), max(P), INTERPOLATION_RESOLUTION)
-Q_fun = interpolate.interp1d(P, Q)
-Q_val = np.array([Q_fun(i) for i in P_int])
+        elif size > 1:
+            result = []
+            for n in np.random.random(size=size):
+                idx = floor(n * self.interp_resolution)
+                result.append(self.Finv_arr[idx])
+            return result
+        else:
+            raise Exception("Invalid size")
 
-# deriv = np.diff(list(reversed(Q_val)))/np.diff(P_int)
-# deriv = np.insert(deriv, 0, 0)
-# deriv = deriv/np.trapz(deriv, P_int)
-# plt.plot(P_int, integrate_cumulative(P_int, deriv))
-# plt.show()
-
-Q_val = np.array(Q_val) / max(Q_val)
-
-Finv = interpolate.interp1d(Q_val, P_int)
-
-Finv_arr = [Finv(i).tolist() for i in np.linspace(0, 1, INTERPOLATION_RESOLUTION)]
-
-
-def sample_price(size=1):
-    if size == 1:
-        n = np.random.random()
-        idx = floor(n * INTERPOLATION_RESOLUTION)
-        p = Finv_arr[idx]
-        # p = Finv(n).tolist()
-        return p
-    elif size > 1:
-        result = []
-        for n in np.random.random(size=size):
-            idx = floor(n * INTERPOLATION_RESOLUTION)
-            result.append(Finv_arr[idx])
-        return result
-    else:
-        raise Exception("Invalid size")
-
-
-logging.info("Loaded demand curve")
 
 if __name__ == "__main__":
+    # P, Q
+    POINTS = [
+        (0, 100000),
+        (0.1, 20000),
+        (5, 15000),
+        (20, 10000),
+        (40, 6000),
+        (60, 3000),
+        (80, 1000),
+        (100, 0),
+    ]
+
+    DEMO_SAMPLE_SIZE = 200000  # Only for the demo in this file
+
+    YLIM = 22000
+    N_BINS = 100
+
+    # End of config
+
+    P = [i[0] for i in POINTS]
+    Q = [i[1] for i in POINTS]
+
+    dc = DemandCurve(P, Q)
+
     p_arr = []
     for i in range(DEMO_SAMPLE_SIZE):
-        p_arr.append(sample_price())
+        p_arr.append(dc.sample_price())
 
     fig, ax1 = plt.subplots()
 
