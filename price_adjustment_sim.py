@@ -15,8 +15,6 @@ PAGINATED_OUTPUT_DIR = "out-paginated"
 BLOCK_GAS_LIMIT = 10_000_000
 TX_GAS_USED = 21_000
 
-OVERBIDDING_RATE = 0.1
-
 # BLOCK_TIME = 13
 BLOCK_TIME = 600
 BLOCKS_IN_DAY = floor(SECONDS_IN_DAY / BLOCK_TIME)
@@ -39,22 +37,17 @@ demand_curve = DemandCurve(config.P, config.Q)
 #     coeff = 2 * pi / BLOCKS_IN_DAY
 #     return int(base + osc_amplitude * sin(coeff * i))
 
-
 def n_user_fun(i):
     base = 5000
-
     # long term
     trend_peak = 3000
     peak_center = BLOCKS_IN_DAY * 100
     rate_param = BLOCKS_IN_DAY * 27
     trend = trend_peak * exp(-((i - peak_center) ** 2) / 2 / rate_param ** 2)
-
     # short term
     osc_amplitude = 2000 * (base + trend) / base
     osc = osc_amplitude * sin(2 * pi / BLOCKS_IN_DAY * i)
-
     return int(base + osc + trend)
-
 
 # import matplotlib.pyplot as plt
 # X = list(range(220 * BLOCKS_IN_DAY))
@@ -72,7 +65,6 @@ sim = PriceAdjustmentSimulator(
     OUTPUT_DIR,
     block_gas_limit=BLOCK_GAS_LIMIT,
     tx_gas_used=TX_GAS_USED,
-    overbidding_rate=OVERBIDDING_RATE,
     block_time=BLOCK_TIME,
     control_range=CONTROL_RANGE,
     target_fullness=TARGET_FULLNESS,

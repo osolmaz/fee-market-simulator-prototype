@@ -54,7 +54,7 @@ for x in X:
 
     if len(blocks) == 0:
         prev_median_price = 0.1
-        prev_min_price = 0.0
+        prev_min_price = 0.1
     else:
         prev_median_price = blocks[-1].get_median_price()
         prev_min_price = blocks[-1].get_min_price()
@@ -63,7 +63,7 @@ for x in X:
     wtp_arr = demand_curve.sample_price(size=n_user)  # Willingness to pay
     prices = []
     for wtp in wtp_arr:
-        bid_price = prev_median_price + prev_median_price * OVERBIDDING_RATE
+        bid_price = prev_min_price + prev_min_price * OVERBIDDING_RATE
 
         if wtp < prev_min_price:
             pass

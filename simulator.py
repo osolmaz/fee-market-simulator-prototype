@@ -27,7 +27,6 @@ class PriceAdjustmentSimulator:
         output_dir,
         block_gas_limit=10_000_000,
         tx_gas_used=21_000,
-        overbidding_rate=0.1,
         block_time=600,
         control_range=144,
         target_fullness=0.65,
@@ -41,7 +40,6 @@ class PriceAdjustmentSimulator:
 
         self.block_gas_limit = block_gas_limit
         self.tx_gas_used = tx_gas_used
-        self.overbidding_rate = overbidding_rate
         self.block_time = block_time
         self.control_range = control_range
         self.target_fullness = target_fullness
@@ -102,7 +100,7 @@ class PriceAdjustmentSimulator:
                 if increase:
                     fixed_price = fixed_price * (1 + self.price_adjustment_rate)
                 else:
-                    fixed_price = fixed_price * (1 - self.price_adjustment_rate)
+                    fixed_price = fixed_price / (1 + self.price_adjustment_rate)
 
                 count += 1
 

@@ -1,4 +1,5 @@
 import logging
+import random
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -34,16 +35,13 @@ class DemandCurve:
 
     def sample_price(self, size=1):
         if size == 1:
-            n = np.random.random()
-            idx = floor(n * self.interp_resolution)
+            idx = random.randint(0, self.interp_resolution-1)
             p = self.Finv_arr[idx]
-            # p = Finv(n).tolist()
             return p
 
         elif size > 1:
             result = []
-            for n in np.random.random(size=size):
-                idx = floor(n * self.interp_resolution)
+            for idx in random.sample(range(self.interp_resolution), size):
                 result.append(self.Finv_arr[idx])
             return result
         else:
